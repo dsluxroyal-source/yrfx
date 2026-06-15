@@ -1,0 +1,70 @@
+import json
+from cryptography.fernet import Fernet
+VAULT_FILE = "vault.json"
+KEY_FILE = "secret.key"
+def generate_key():
+    key = Fernet.generate_key()
+    with open(KEY_FILE, "wb") as file:
+        file.write(key)
+def load_key():
+    try:
+        with open(KEY_FILE, "rb") as file:
+            return file.read()
+    except FileNotFoundError:
+        generate_key()
+        with open(KEY_FILE, "rb") as file:
+            return file.read()
+key = load_key()
+cipher = Fernet(key)
+def load_vault():
+    try:
+        with open(VAULT_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+def save_vault(vault):
+    with open(VAULT_FILE, "w") as file:
+        json.dump(vault, file, indent=4)
+def add_password(vault):
+    site = input("Enter site name: ").lower()
+    username = input("Enter username: ")
+    password = input("Enter password: ")
+    encrypted_password = cipher.encrypt(
+        password.encode()
+    ).decode()
+    vault[site] = {
+        "username": username,
+        "password": encrypted_password
+    }
+    save_vault(vault)
+    print("Password saved successfully!")
+def view_password(vault):
+    site = input("Enter site name: ").lower()
+    if site not in vault:
+        print("No record found.")
+        return
+    data = vault[site]
+    decrypted_password = cipher.decrypt(
+        data["password"].encode()
+    ).decode()
+    print("\nUsername:", data["username"])
+    print("Password:", decrypted_password)
+def main():
+    vault = load_vault()
+    while True:
+        print("\n=== Password Manager ===")
+        print("1. Add Password")
+        print("2. View Password")
+        print("3. Exit")
+        choice = input("Choose option: ")
+        if choice == "1":
+            add_password(vault)
+        elif choice == "2":
+            view_password(vault)
+        elif choice == "3":
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid option.")
+
+main()
